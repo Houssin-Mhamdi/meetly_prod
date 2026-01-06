@@ -10,6 +10,7 @@ const availabilitySchema = new mongoose.Schema({
     end: String    // "17:00"
 });
 
+
 const EventSchema = new mongoose.Schema({
     title: String,
     description: String,
@@ -28,6 +29,7 @@ const EventSchema = new mongoose.Schema({
         default: "google_meet"
     },
     availability: [availabilitySchema],
+    category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
     timezone: {
         type: String,
         default: "UTC"

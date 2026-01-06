@@ -7,7 +7,7 @@ const User = require("./models/User");
 const Event = require("./models/Event");
 
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
+const Category = require("./models/Category");
 const { auth } = require("./middlewares/auth");
 const Booking = require("./models/Booking");
 const generateSlots = require("./helper/generateSlots");
@@ -368,6 +368,52 @@ app.post("/events", auth, catchAsync(async (req, res) => {
 
     res.json(savedEvent);
 }));
+
+
+// ------------------ CATEGORY ------------------
+app.post("/events/:id/category", auth, catchAsync(async (req, res) => {
+    const { categoryId } = req.body;
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+        const error = new Error("Event not found");
+        error.statusCode = 404;
+        throw error;
+    }
+    event.category = categoryId;
+    await event.save();
+    res.json(event);
+}));
+
+//add category
+app.post("/category", auth, catchAsync(async (req, res) => {
+    const { name, description, color } = req.body;
+    const category = await Category.create({ name, description, color, owner: req.user._id });
+    res.json(category);
+}));
+
+//get category by user  
+app.get("/category", auth, catchAsync(async (req, res) => {
+    const categories = await Category.find({ owner: req.user._id });
+    // Optional: if user has no categories
+    if (categories.length === 0) {
+        return res.status(404).json({ message: "No categories found" });
+    }
+    res.json(categories);
+}));
+
+//update category
+app.put("/category/:id", auth, catchAsync(async (req, res) => {
+    const { name, description, color } = req.body;
+    const category = await Category.findByIdAndUpdate(req.params.id, { name, description, color }, { new: true });
+    res.json(category);
+}));
+
+//delete category
+app.delete("/category/:id", auth, catchAsync(async (req, res) => {
+    const category = await Category.findByIdAndDelete(req.params.id);
+    res.json(category);
+}));
+
 
 app.get(
     "/events",
