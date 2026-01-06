@@ -308,7 +308,7 @@ app.get("/events/:id/availability", catchAsync(async (req, res) => {
 }));
 
 app.post("/events", auth, catchAsync(async (req, res) => {
-    const { userId, title, description, availability, slotDuration, service,durationType, timezone } = req.body;
+    const { userId, title, description, availability, slotDuration, service, durationType, customDurationUnit, customDurationValue, timezone } = req.body;
 
     if (!userId || !title) {
         const error = new Error("userId and title required");
@@ -334,6 +334,8 @@ app.post("/events", auth, catchAsync(async (req, res) => {
         availability,
         slotDuration,
         durationType,
+        customDurationUnit,
+        customDurationValue,
         start: { dateTime: new Date(Date.now() + 5 * 60 * 1000).toISOString(), timeZone: "UTC" },
         end: { dateTime: new Date(Date.now() + 35 * 60 * 1000).toISOString(), timeZone: "UTC" },
         conferenceData: {
@@ -356,6 +358,8 @@ app.post("/events", auth, catchAsync(async (req, res) => {
         availability,
         slotDuration,
         durationType,
+        customDurationUnit,
+        customDurationValue,
         service,
         timezone: timezone || "UTC",
         meetLink: response.data.hangoutLink,

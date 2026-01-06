@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const availabilitySchema = new mongoose.Schema({
     day: {
         type: String,
-        enum: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+        enum: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
         required: true
     },
     start: String, // "09:00"
@@ -19,8 +19,9 @@ const EventSchema = new mongoose.Schema({
         type: Number,
         default: 30 // minutes
     },
-    durationType:String,
-    
+    durationType: String,
+    customDurationUnit: String,
+    customDurationValue: Number,
     service: {
         type: String,
         enum: ["google_meet", "zoom", "microsoft_teams"],
@@ -30,8 +31,9 @@ const EventSchema = new mongoose.Schema({
     timezone: {
         type: String,
         default: "UTC"
-    }
-
+    },
+    customValue: Number,
+    customUnit: String
 }, {
     timestamps: true
 });
