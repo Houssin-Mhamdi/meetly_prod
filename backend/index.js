@@ -7,7 +7,7 @@ const User = require("./models/User");
 const Event = require("./models/Event");
 
 const jwt = require("jsonwebtoken");
-const Category = require("./models/Category");
+const Category = require("./models/Categories");
 const { auth } = require("./middlewares/auth");
 const Booking = require("./models/Booking");
 const generateSlots = require("./helper/generateSlots");
