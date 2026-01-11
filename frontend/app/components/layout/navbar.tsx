@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { IUser } from "@/app/types/user.types"
+import Link from "next/link"
 
 
 
@@ -48,7 +49,7 @@ export function Navbar({ user }: { user: IUser }) {
                     </DropdownMenuTrigger>
 
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem className="cursor-pointer">Profile</DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer"><Link href="/profile">Profile</Link></DropdownMenuItem>
                         <DropdownMenuItem className="cursor-pointer text-destructive">
                             Logout
                         </DropdownMenuItem>

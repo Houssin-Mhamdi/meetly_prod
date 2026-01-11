@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Clock8, Pencil, Plus, Search, Trash, Video, Link as LinkIcon, ChevronDown, ChevronUp, Check, X } from "lucide-react";
+import { Clock8, Pencil, Plus, Search, Trash, Video, Link as LinkIcon, ChevronDown, ChevronUp, Check, X } from "lucide-react";
 import {
     Pagination,
     PaginationContent,
@@ -9,13 +9,7 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+
 import {
     Dialog,
     DialogContent,
@@ -27,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import Link from "next/link";
+
 import { useEventsQuery, useUpdateEventMutation } from "@/app/services/queries/eventQuery";
 import { useEffect, useState, memo, useMemo, useCallback } from "react";
 import { SchedulingEvent, EventAvailability, EventSettings } from "@/app/types/event.types";
@@ -123,6 +117,12 @@ const SettingsModal = ({
                         description="Show/Hide controls for weekly availability."
                         checked={settings.canUpdateAvailability}
                         onChange={(v) => setSettings({ ...settings, canUpdateAvailability: v })}
+                    />
+                    <SettingsToggle
+                        label="Update Price"
+                        description="Show/Hide the pen for event price."
+                        checked={settings.canUpdatePrice}
+                        onChange={(v) => setSettings({ ...settings, canUpdatePrice: v })}
                     />
                 </div>
                 <DialogFooter className="bg-slate-50/50 dark:bg-slate-900/40 p-6 flex flex-col sm:flex-row gap-2">
@@ -297,6 +297,8 @@ const EventCard = memo(({
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     const [titleValue, setTitleValue] = useState(event.title);
     const [descriptionValue, setDescriptionValue] = useState(event.description);
+    const [priceValue, setPriceValue] = useState(event.price || 0);
+    const [isEditingPrice, setIsEditingPrice] = useState(false);
 
     const [settings, setSettings] = useState<EventSettings>(() => {
         if (typeof window !== 'undefined') {
@@ -308,6 +310,7 @@ const EventCard = memo(({
             canUpdateDescription: false,
             canUpdateDuration: false,
             canUpdateAvailability: false,
+            canUpdatePrice: true,
         };
     });
 
@@ -361,9 +364,19 @@ const EventCard = memo(({
         setIsEditingDescription(false);
     }, [descriptionValue, event, updateEvent]);
 
+    const handleUpdatePrice = useCallback(() => {
+        if (priceValue !== event.price) {
+            updateEvent({ id: event._id, data: { ...event, price: priceValue } });
+        } else {
+            setPriceValue(event.price || 0);
+        }
+        setIsEditingPrice(false);
+    }, [priceValue, event, updateEvent]);
+
     useEffect(() => {
         setTitleValue(event.title);
         setDescriptionValue(event.description);
+        setPriceValue(event.price || 0);
         setDurationTypeValue(event.durationType || "30");
         setCustomVal(event.customDurationValue || 0);
         setCustomUnit(event.customDurationUnit || "min");
@@ -613,6 +626,47 @@ const EventCard = memo(({
                             </div>
                             <div className="hidden md:flex flex-col items-end gap-1">
                                 <span className="inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">Active</span>
+                                {isEditingPrice ? (
+                                    <div className="flex items-center gap-1 mt-1">
+                                        <div className="relative">
+                                            <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">$</span>
+                                            <input
+                                                type="number"
+                                                value={priceValue}
+                                                onChange={(e) => setPriceValue(Number(e.target.value))}
+                                                className="w-16 h-6 text-[10px] pl-4 pr-1 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 outline-none focus:ring-1 focus:ring-primary font-bold"
+                                                autoFocus
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') handleUpdatePrice();
+                                                    if (e.key === 'Escape') {
+                                                        setIsEditingPrice(false);
+                                                        setPriceValue(event.price || 0);
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                        <button onClick={handleUpdatePrice} className="text-emerald-500 p-0.5 hover:bg-emerald-50 rounded">
+                                            <Check size={12} />
+                                        </button>
+                                        <button onClick={() => { setIsEditingPrice(false); setPriceValue(event.price || 0); }} className="text-red-500 p-0.5 hover:bg-red-50 rounded">
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1 group/price mt-1">
+                                        <span className="text-sm font-black text-slate-700 dark:text-slate-200">
+                                            ${event.price || 0}
+                                        </span>
+                                        {settings.canUpdatePrice && (
+                                            <button
+                                                onClick={() => setIsEditingPrice(true)}
+                                                className="opacity-0 group-hover/price:opacity-100 transition-opacity p-1 text-slate-400 hover:text-primary"
+                                            >
+                                                <Pencil size={10} />
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                         {isEditingDescription ? (
@@ -814,7 +868,7 @@ export default function EventsPage() {
 
     return (
         <div className="flex justify-center w-full">
-            <div className="flex flex-col max-w-[1000px] w-full gap-8">
+            <div className="flex flex-col max-w-[1200px] w-full gap-8">
                 <HeaderEvent title="My Events" description="Manage your scheduled client interactions and services." />
                 <SearchEvent
                     searchQuery={searchQuery}

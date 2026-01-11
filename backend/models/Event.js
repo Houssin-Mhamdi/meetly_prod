@@ -19,6 +19,18 @@ const EventSchema = new mongoose.Schema({
     description: String,
     meetLink: String,
     owner: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    price: {
+        type: Number,
+        default: 0
+    },
+    videoLink: {
+        type: String,
+        default: ""
+    },
+    category: {
+        type: mongoose.Schema.Types.Mixed, // Can be string (predefined) or ObjectId (custom)
+        default: "other"
+    },
     slotDuration: {
         type: Number,
         default: 30 // minutes
@@ -32,13 +44,22 @@ const EventSchema = new mongoose.Schema({
         default: "google_meet"
     },
     availability: [availabilitySchema],
-    category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
     timezone: {
         type: String,
         default: "UTC"
     },
     customValue: Number,
-    customUnit: String
+    customUnit: String,
+    cardGradient: {
+        from: {
+            type: String,
+            default: "from-blue-50"
+        },
+        to: {
+            type: String,
+            default: "to-indigo-50"
+        }
+    }
 }, {
     timestamps: true
 });

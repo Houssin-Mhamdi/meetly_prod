@@ -12,6 +12,7 @@ export interface EventSettings {
     canUpdateDescription: boolean;
     canUpdateDuration: boolean;
     canUpdateAvailability: boolean;
+    canUpdatePrice: boolean;
 }
 
 export interface SchedulingEvent {
@@ -19,6 +20,9 @@ export interface SchedulingEvent {
     id: string;
     title: string;
     description: string;
+    price: number;
+    videoLink?: string;
+    category?: string;
     service: string;
     totalMinutes?: number;
     slotDuration: number;
@@ -32,6 +36,10 @@ export interface SchedulingEvent {
     customUnit?: string;
     customValue?: number;
     settings?: EventSettings;
+    cardGradient?: {
+        from: string;
+        to: string;
+    };
     createdAt: string;
     updatedAt: string;
 }

@@ -1,11 +1,24 @@
 "use client";
 
-import React, { useState } from "react";
-import Image from "next/image";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Calendar, Tags, ArrowUpDown } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useProfileBySlugQuery } from "../services/queries/authQuery";
 
 export default function StorefrontPage({ params }: { params: { slug: string } }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
-
+    const param = useParams()
+    const { data: profileSlug, isLoading } = useProfileBySlugQuery(typeof param.slug === 'string' ? param.slug : "")
+    console.log({ profileSlug })
     return (
         <div className="relative flex h-screen w-full flex-col overflow-hidden bg-background-light dark:bg-background-dark font-sans antialiased text-slate-900 dark:text-white transition-colors duration-200">
             {/* Header */}
@@ -16,19 +29,19 @@ export default function StorefrontPage({ params }: { params: { slug: string } })
                     <span className="text-slate-900 dark:text-white font-medium">Marketplace</span>
                 </div>
                 <div className="flex items-center gap-4">
-                    <button className="relative text-slate-500 hover:text-primary transition-colors p-2 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800">
+                    <Button variant="ghost" size="icon" className="relative text-slate-500 hover:text-primary transition-colors p-2 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800">
                         <span className="material-symbols-outlined">shopping_cart</span>
                         <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
-                    </button>
-                    <button className="text-slate-500 hover:text-primary transition-colors p-2 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800">
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-slate-500 hover:text-primary transition-colors p-2 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800">
                         <span className="material-symbols-outlined">help</span>
-                    </button>
+                    </Button>
                     <div className="hidden md:flex items-center gap-3 pl-6 border-l border-slate-200 dark:border-slate-800 ml-2">
                         <div className="flex flex-col items-end">
                             <span className="text-sm font-bold text-slate-900 dark:text-white leading-none">Sarah J.</span>
                             <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">Premium Member</span>
                         </div>
-                        <button className="relative group outline-none">
+                        <Button variant="ghost" className="relative group p-0 h-auto w-auto rounded-full outline-none">
                             <div className="h-9 w-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
                                 <img
                                     alt="Profile"
@@ -37,12 +50,12 @@ export default function StorefrontPage({ params }: { params: { slug: string } })
                                 />
                             </div>
                             <div className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full border-2 border-white dark:border-slate-900"></div>
-                        </button>
+                        </Button>
                     </div>
                     <div className="md:hidden">
-                        <button className="text-slate-500">
+                        <Button variant="ghost" size="icon" className="text-slate-500">
                             <span className="material-symbols-outlined">menu</span>
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </header>
@@ -68,13 +81,13 @@ export default function StorefrontPage({ params }: { params: { slug: string } })
                                     Join 5,000+ creators for a weekend of inspiration, workshops, and networking. Early bird tickets end soon!
                                 </p>
                                 <div className="flex flex-wrap gap-4">
-                                    <button className="px-6 py-3 bg-white text-indigo-600 rounded-xl font-bold shadow-lg shadow-black/5 hover:bg-indigo-50 hover:-translate-y-0.5 transition-all flex items-center gap-2">
+                                    <Button className="px-6 py-3 bg-white text-indigo-600 rounded-xl font-bold shadow-lg shadow-black/5 hover:bg-indigo-50 hover:-translate-y-0.5 transition-all flex items-center gap-2 h-auto">
                                         Get Tickets
                                         <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-                                    </button>
-                                    <button className="px-6 py-3 bg-indigo-800/30 text-white border border-white/20 rounded-xl font-semibold hover:bg-indigo-800/50 transition-all backdrop-blur-sm">
+                                    </Button>
+                                    <Button className="px-6 py-3 bg-indigo-800/30 text-white border border-white/20 rounded-xl font-semibold hover:bg-indigo-800/50 transition-all backdrop-blur-sm h-auto">
                                         View Schedule
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                             <div className="hidden md:block relative shrink-0">
@@ -104,35 +117,74 @@ export default function StorefrontPage({ params }: { params: { slug: string } })
                             <h1 className="text-slate-900 dark:text-white text-2xl md:text-3xl font-bold tracking-tight">Events Store</h1>
                             <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base">Browse tickets for workshops, conferences, and meetups.</p>
                         </div>
-                        <div className="flex flex-col lg:flex-row gap-4">
-                            <div className="relative flex-1">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 material-symbols-outlined" style={{ fontSize: "20px" }}>
-                                    search
-                                </span>
-                                <input
-                                    className="w-full rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:border-primary focus:ring-primary h-12 pl-10 pr-4 text-sm shadow-sm transition-all outline-none"
+                        <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center">
+                            <div className="relative flex-1 group">
+                                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none z-10">
+                                    <span className="text-slate-400 material-symbols-outlined text-[20px]! leading-none translate-y-px">
+                                        search
+                                    </span>
+                                </div>
+                                <Input
+                                    className="w-full rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:border-primary focus:ring-primary h-11 pl-10 pr-4 text-sm shadow-sm transition-all outline-none"
                                     placeholder="Search for events..."
                                     type="text"
                                 />
                             </div>
-                            <div className="grid grid-cols-2 md:flex gap-4">
-                                <div className="relative w-full md:w-48">
-                                    <select className="w-full rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:border-primary focus:ring-primary h-12 px-4 text-sm shadow-sm cursor-pointer outline-none appearance-none">
-                                        <option value="">Category</option>
-                                        <option>Technology</option>
-                                        <option>Business</option>
-                                        <option>Arts &amp; Culture</option>
-                                        <option>Wellness</option>
-                                    </select>
-                                </div>
-                                <div className="relative w-full md:w-48">
-                                    <select className="w-full rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:border-primary focus:ring-primary h-12 px-4 text-sm shadow-sm cursor-pointer outline-none appearance-none">
-                                        <option value="">Sort by</option>
-                                        <option>Price: Low to High</option>
-                                        <option>Price: High to Low</option>
-                                        <option>Date: Soonest</option>
-                                    </select>
-                                </div>
+
+                            <div className="flex items-center gap-3 overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
+                                <Select>
+                                    <SelectTrigger className="flex-none w-[140px] md:w-[160px] bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 h-11 rounded-xl px-4 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                                        <div className="flex items-center gap-2">
+                                            <Tags size={16} className="text-primary" />
+                                            <SelectValue placeholder="Category" />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 shadow-xl">
+                                        <SelectItem value="technology" className="rounded-lg">Technology</SelectItem>
+                                        <SelectItem value="business" className="rounded-lg">Business</SelectItem>
+                                        <SelectItem value="arts" className="rounded-lg">Arts &amp; Culture</SelectItem>
+                                        <SelectItem value="wellness" className="rounded-lg">Wellness</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <Select>
+                                    <SelectTrigger className="flex-none w-[140px] md:w-[160px] bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 h-11 rounded-xl px-4 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                                        <div className="flex items-center gap-2">
+                                            <ArrowUpDown size={16} className="text-primary" />
+                                            <SelectValue placeholder="Sort" />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 shadow-xl">
+                                        <SelectItem value="low-to-high" className="rounded-lg">Price: Low to High</SelectItem>
+                                        <SelectItem value="high-to-low" className="rounded-lg">Price: High to Low</SelectItem>
+                                        <SelectItem value="soonest" className="rounded-lg">Date: Soonest</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <Select defaultValue="all-time">
+                                    <SelectTrigger className="flex-none w-[140px] md:w-[160px] bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 h-11 rounded-xl px-4 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                                        <div className="flex items-center gap-2">
+                                            <Calendar size={16} className="text-primary" />
+                                            <SelectValue placeholder="Period" />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 shadow-xl">
+                                        <SelectItem value="this-week" className="rounded-lg">This Week</SelectItem>
+                                        <SelectItem value="next-week" className="rounded-lg">Next Week</SelectItem>
+                                        <SelectItem value="this-month" className="rounded-lg">This Month</SelectItem>
+                                        <SelectItem value="all-time" className="rounded-lg">All Time</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <div className="hidden lg:block h-6 w-px bg-slate-200 dark:bg-slate-800 mx-1 flex-none"></div>
+
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-11 px-4 rounded-xl text-slate-500 hover:text-primary hover:bg-primary/5 dark:hover:bg-primary/10 font-bold transition-all flex-none"
+                                >
+                                    Clear
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -140,6 +192,9 @@ export default function StorefrontPage({ params }: { params: { slug: string } })
                     {/* Event Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
                         {/* Event Card 1 */}
+                        {/* TODO: Replace hardcoded gradient with dynamic event.cardGradient 
+                            Example: className={`aspect-4/3 w-full bg-linear-to-br ${event.cardGradient?.from || "from-indigo-500"} ${event.cardGradient?.to || "to-purple-600"} relative overflow-hidden`}
+                        */}
                         <div
                             onClick={() => setIsModalOpen(true)}
                             className="group flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer h-full relative"
@@ -214,7 +269,7 @@ export default function StorefrontPage({ params }: { params: { slug: string } })
                             onClick={() => setIsModalOpen(true)}
                             className="group flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer h-full relative"
                         >
-                            <div className="aspect-[4/3] w-full bg-emerald-50 dark:bg-emerald-900/30 relative overflow-hidden flex items-center justify-center">
+                            <div className="aspect-4/3 w-full bg-emerald-50 dark:bg-emerald-900/30 relative overflow-hidden flex items-center justify-center">
                                 <span className="material-symbols-outlined text-emerald-300 dark:text-emerald-700/50 absolute -bottom-4 -right-4 text-[140px] rotate-[-15deg]">
                                     self_improvement
                                 </span>
@@ -320,16 +375,16 @@ export default function StorefrontPage({ params }: { params: { slug: string } })
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="flex flex-col gap-1.5">
                                             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Full Name</span>
-                                            <input className="rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-primary focus:ring-primary h-10 px-3 outline-none" placeholder="Jane Doe" type="text" />
+                                            <Input className="rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-primary focus:ring-primary h-10 px-3 outline-none" placeholder="Jane Doe" type="text" />
                                         </div>
                                         <div className="flex flex-col gap-1.5">
                                             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Phone Number</span>
-                                            <input className="rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-primary focus:ring-primary h-10 px-3 outline-none" placeholder="+1 (555) 000-0000" type="tel" />
+                                            <Input className="rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-primary focus:ring-primary h-10 px-3 outline-none" placeholder="+1 (555) 000-0000" type="tel" />
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-1.5">
                                         <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Email Address</span>
-                                        <input className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-primary focus:ring-primary h-10 px-3 outline-none" placeholder="jane@example.com" type="email" />
+                                        <Input className="w-full rounded-lg border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:border-primary focus:ring-primary h-10 px-3 outline-none" placeholder="jane@example.com" type="email" />
                                     </div>
                                     <div className="flex flex-col gap-1.5">
                                         <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -350,16 +405,17 @@ export default function StorefrontPage({ params }: { params: { slug: string } })
 
                         {/* Modal Footer */}
                         <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
-                            <button
-                                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                            <Button
+                                variant="outline"
+                                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors h-auto"
                                 onClick={() => setIsModalOpen(false)}
                             >
                                 Cancel
-                            </button>
-                            <button className="px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-bold shadow-md shadow-primary/20 hover:bg-primary/90 transition-all flex items-center gap-2">
+                            </Button>
+                            <Button className="px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-bold shadow-md shadow-primary/20 hover:bg-primary/90 transition-all flex items-center gap-2 h-auto">
                                 <span>Confirm Booking</span>
                                 <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>

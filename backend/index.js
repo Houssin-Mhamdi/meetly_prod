@@ -6,7 +6,6 @@ const { google } = require("googleapis");
 const User = require("./models/User");
 const Event = require("./models/Event");
 
-const jwt = require("jsonwebtoken");
 const Category = require("./models/Categories");
 const { auth } = require("./middlewares/auth");
 const Booking = require("./models/Booking");
@@ -18,7 +17,11 @@ const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const { getSearchQuery, getPaginationOptions, formatPagedResponse } = require("./utils/queryHelper");
 const authRoutes = require("./routes/authRoutes");
+const categoryRoutes = require("./routes/categoryRoutes");
+const userRoutes = require("./routes/userRoutes");
+const profileRoutes = require("./routes/profileRoutes");
 const app = express();
+
 
 // Enable CORS
 app.use(cors({
@@ -81,6 +84,9 @@ const SCOPES = [
 
 // ------------------ ROUTES ------------------
 app.use("/auth", authRoutes);
+app.use(categoryRoutes);
+app.use(userRoutes);
+app.use("/profile", profileRoutes);
 
 
 app.get("/owner/events/:id/bookings", auth, catchAsync(async (req, res) => {
@@ -91,46 +97,7 @@ app.get("/owner/events/:id/bookings", auth, catchAsync(async (req, res) => {
     res.json(bookings);
 }));
 
-// List users
-app.get("/users", auth, catchAsync(async (req, res) => {
-    const { search, page, limit } = req.query;
-    const query = {};
 
-    if (search) {
-        query.$or = getSearchQuery(search, ["fullName", "email"]);
-    }
-
-    const { skip, limit: limitNum, page: pageNum } = getPaginationOptions(page, limit);
-
-    const [users, total] = await Promise.all([
-        User.find(query).skip(skip).limit(limitNum).sort({ createdAt: -1 }),
-        User.countDocuments(query)
-    ]);
-
-    res.json(formatPagedResponse(users, total, pageNum, limitNum));
-}));
-
-app.get("/profile/:slug", async (req, res) => {
-    const user = await User.findOne({ slug: req.params.slug })
-        .select("fullName slug avatar cover bio location createdAt");
-
-    if (!user) {
-        return res.status(404).json({ error: "Profile not found" });
-    }
-
-    res.json(user);
-});
-
-// Check googleConnected status
-app.get("/users/:id/google-status", catchAsync(async (req, res) => {
-    const user = await User.findById(req.params.id);
-    if (!user) {
-        const error = new Error("User not found");
-        error.statusCode = 404;
-        throw error;
-    }
-    res.json({ googleConnected: user.googleConnected });
-}));
 
 // ------------------ GOOGLE AUTH ------------------
 
@@ -252,7 +219,7 @@ app.get("/events/:id/availability", catchAsync(async (req, res) => {
 
 app.post("/events", auth, catchAsync(async (req, res) => {
     try {
-        const { userId, title, description, availability, slotDuration, service, durationType, customDurationUnit, customDurationValue, timezone } = req.body;
+        const { userId, title, description, price, availability, slotDuration, service, durationType, customDurationUnit, customDurationValue, category, videoLink, timezone } = req.body;
 
         if (!userId || !title) {
             const error = new Error("userId and title required");
@@ -300,6 +267,9 @@ app.post("/events", auth, catchAsync(async (req, res) => {
             customDurationUnit,
             customDurationValue,
             service,
+            category,
+            videoLink,
+            price: price || 0,
             timezone: timezone || "UTC",
             meetLink: response.data.hangoutLink,
             owner: user._id
@@ -313,7 +283,7 @@ app.post("/events", auth, catchAsync(async (req, res) => {
 }));
 
 app.patch("/events/:id", auth, catchAsync(async (req, res) => {
-    const { title, description, availability, slotDuration, durationType, customDurationUnit, customDurationValue, service, timezone } = req.body;
+    const { title, description, price, availability, slotDuration, durationType, customDurationUnit, customDurationValue, service, timezone, category, videoLink } = req.body;
     const event = await Event.findById(req.params.id);
     if (!event) {
         const error = new Error("Event not found");
@@ -329,51 +299,11 @@ app.patch("/events/:id", auth, catchAsync(async (req, res) => {
     event.customDurationValue = customDurationValue;
     event.service = service;
     event.timezone = timezone;
+    event.category = category;
+    event.videoLink = videoLink;
+    event.price = price || 0;
     await event.save();
     res.json(event);
-}));
-// ------------------ CATEGORY ------------------
-app.post("/events/:id/category", auth, catchAsync(async (req, res) => {
-    const { categoryId } = req.body;
-    const event = await Event.findById(req.params.id);
-    if (!event) {
-        const error = new Error("Event not found");
-        error.statusCode = 404;
-        throw error;
-    }
-    event.category = categoryId;
-    await event.save();
-    res.json(event);
-}));
-
-//add category
-app.post("/category", auth, catchAsync(async (req, res) => {
-    const { name, description, color } = req.body;
-    const category = await Category.create({ name, description, color, owner: req.user._id });
-    res.json(category);
-}));
-
-//get category by user  
-app.get("/category", auth, catchAsync(async (req, res) => {
-    const categories = await Category.find({ owner: req.user._id });
-    // Optional: if user has no categories
-    if (categories.length === 0) {
-        return res.status(404).json({ message: "No categories found" });
-    }
-    res.json(categories);
-}));
-
-//update category
-app.put("/category/:id", auth, catchAsync(async (req, res) => {
-    const { name, description, color } = req.body;
-    const category = await Category.findByIdAndUpdate(req.params.id, { name, description, color }, { new: true });
-    res.json(category);
-}));
-
-//delete category
-app.delete("/category/:id", auth, catchAsync(async (req, res) => {
-    const category = await Category.findByIdAndDelete(req.params.id);
-    res.json(category);
 }));
 
 
@@ -382,7 +312,7 @@ app.get(
     auth,
     catchAsync(async (req, res) => {
         const { search, page, limit } = req.query;
-        console.log("req", req.user)
+
         const query = {
             owner: req.user._id,
         };
@@ -395,9 +325,25 @@ app.get(
         const { skip, limit: limitNum, page: pageNum } = getPaginationOptions(page, limit);
 
         const [events, total] = await Promise.all([
-            Event.find(query).skip(skip).limit(limitNum).sort({ createdAt: -1 }),
+            Event.find(query).skip(skip).limit(limitNum).sort({ createdAt: -1 }).lean(),
             Event.countDocuments(query)
         ]);
+
+        // Manually populate category for mixed type
+        const categoryIds = events
+            .map(e => e.category)
+            .filter(c => c && mongoose.Types.ObjectId.isValid(c)); // precise check
+
+        if (categoryIds.length > 0) {
+            const categories = await Category.find({ _id: { $in: categoryIds } }).lean();
+            const categoryMap = new Map(categories.map(c => [c._id.toString(), c]));
+
+            events.forEach(event => {
+                if (event.category && mongoose.Types.ObjectId.isValid(event.category) && categoryMap.has(event.category.toString())) {
+                    event.category = categoryMap.get(event.category.toString());
+                }
+            });
+        }
 
         res.json(formatPagedResponse(events, total, pageNum, limitNum));
     })
@@ -496,30 +442,8 @@ app.get("/events/:id/subscribe", catchAsync(async (req, res) => {
     res.json({ meetLink: event.meetLink });
 }));
 
-app.get("/profile/:slug/events", async (req, res) => {
-    const user = await User.findOne({ slug: req.params.slug });
-    if (!user) return res.status(404).json({ error: "User not found" });
 
-    const events = await Event.find({ owner: user._id })
-        .select("title description availability slotDuration createdAt");
 
-    res.json(events);
-});
-
-app.get("/profile/:slug/full", async (req, res) => {
-    const user = await User.findOne({ slug: req.params.slug })
-        .select("fullName slug avatar cover bio location");
-
-    if (!user) return res.status(404).json({ error: "Profile not found" });
-
-    const events = await Event.find({ owner: user._id })
-        .select("title description availability slotDuration");
-
-    res.json({
-        profile: user,
-        events
-    });
-});
 
 // ------------------ SERVER ------------------
 app.use(errorMiddleware);

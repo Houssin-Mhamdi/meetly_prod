@@ -21,6 +21,7 @@ const pages = [
     { name: "Reports", href: "/reports" },
     { name: "Events", href: "/events" },
     { name: "Settings", href: "/settings/general" },
+    { name: "Profile", href: "/profile" },
 
     // Online Store
     { name: "Themes", href: "/online-store/themes" },

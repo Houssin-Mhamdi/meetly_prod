@@ -6,6 +6,14 @@ import * as z from "zod";
 import { Calendar, ChevronLeft, ChevronRight, Clock5, FilePlusCorner, Info, Lightbulb, Plus, Trash, Video } from "lucide-react";
 import { useCreateEventMutation } from "@/app/services/queries/eventQuery";
 import { useProfileQuery } from "@/app/services/queries/authQuery";
+import { useCreateCategoryMutation, useGetCategoriesQuery } from "@/app/services/queries/categoryQuery";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
 
 /* =======================
    ZOD SCHEMA
@@ -14,6 +22,9 @@ import { useProfileQuery } from "@/app/services/queries/authQuery";
 export const appointmentSchema = z.object({
     title: z.string().min(1, "Title is required"),
     description: z.string().min(1, "Description is required"),
+    price: z.number().min(0, "Price cannot be negative"),
+    videoLink: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+    category: z.string().min(1, "Category is required"),
     service: z.enum(["google_meet", "zoom", "microsoft_teams"]),
     durationType: z.enum(["15", "30", "45", "60", "custom"]),
     customDurationValue: z.number().optional(),
@@ -31,6 +42,10 @@ export const appointmentSchema = z.object({
             const days = data.map(d => d.day.toLowerCase());
             return new Set(days).size === days.length;
         }, { message: "Each day can only be selected once" }),
+    cardGradient: z.object({
+        from: z.string(),
+        to: z.string(),
+    }),
 });
 
 const generateTimeSlots = (start: string, end: string) => {
@@ -52,7 +67,7 @@ const generateTimeSlots = (start: string, end: string) => {
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-type FormData = z.infer<typeof appointmentSchema>;
+type AppointmentFormValues = z.infer<typeof appointmentSchema>;
 
 /* =======================
    PAGE
@@ -60,6 +75,29 @@ type FormData = z.infer<typeof appointmentSchema>;
 export default function AppointmentsPage() {
     const { mutate: createEvent, isPending } = useCreateEventMutation();
     const { data: user, isLoading } = useProfileQuery();
+    const { data: categories, isLoading: isCategoriesLoading } = useGetCategoriesQuery();
+    const { mutate: createCategory, isPending: isCreatingCategory } = useCreateCategoryMutation();
+
+    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState("");
+    const [newCategoryDesc, setNewCategoryDesc] = useState("");
+    const [newCategoryColor, setNewCategoryColor] = useState("#3b82f6");
+
+    const handleCreateCategory = () => {
+        if (!newCategoryName) return;
+        createCategory({
+            name: newCategoryName,
+            description: newCategoryDesc,
+            color: newCategoryColor
+        }, {
+            onSuccess: () => {
+                setIsCategoryModalOpen(false);
+                setNewCategoryName("");
+                setNewCategoryDesc("");
+                setNewCategoryColor("#3b82f6");
+            }
+        });
+    };
 
 
     const {
@@ -68,16 +106,25 @@ export default function AppointmentsPage() {
         handleSubmit,
         setValue,
         formState: { errors }
-    } = useForm<FormData>({
-        resolver: zodResolver(appointmentSchema),
+    } = useForm<AppointmentFormValues>({
+        resolver: zodResolver(appointmentSchema) as any,
         defaultValues: {
             title: "30 Min Consultation",
             description: "Briefly describe what this event is about...",
+            price: 0,
+            videoLink: "",
+            category: "other",
             service: "google_meet",
             durationType: "30",
+            customDurationValue: 30,
+            customDurationUnit: "min",
             availability: [
-                { day: "Monday", start: "09:00", end: "17:00" },
+                { day: "Monday", start: "09:00", end: "17:00", startPause: "", endPause: "" },
             ],
+            cardGradient: {
+                from: "from-blue-50",
+                to: "to-indigo-50",
+            },
         },
     });
 
@@ -94,8 +141,10 @@ export default function AppointmentsPage() {
     const availabilityEntries = useWatch({ control, name: "availability" });
     const title = useWatch({ control, name: "title" });
     const description = useWatch({ control, name: "description" });
+    const price = useWatch({ control, name: "price" });
+    const videoLink = useWatch({ control, name: "videoLink" });
     const service = useWatch({ control, name: "service" });
-    console.log({ durationType });
+    const cardGradient = useWatch({ control, name: "cardGradient" });
     const selectedDays = availabilityEntries?.map(a => a.day) || [];
 
     const totalMinutes =
@@ -112,15 +161,21 @@ export default function AppointmentsPage() {
         ? `${hours}h${minutes > 0 ? ` ${minutes}m` : ""}`
         : `${minutes} min`;
 
+    // Determine if gradient is dark (for text color adjustment)
+    const darkGradients = [
+        "from-orange-400", "from-indigo-500", "from-green-400",
+        "from-pink-400", "from-yellow-400", "from-teal-400",
+        "from-purple-400", "from-slate-700"
+    ];
+    const isDarkGradient = darkGradients.includes(cardGradient?.from || "");
 
-    const onSubmit = (data: FormData) => {
+
+    const onSubmit: SubmitHandler<AppointmentFormValues> = (data) => {
         createEvent({
             ...data,
             userId: user?._id,
             durationType: data.durationType === "custom" ? String(totalMinutes) : data.durationType,
             slotDuration: totalMinutes,
-            customDurationValue: customValue,
-            customDurationUnit: customUnit,
             totalMinutes,
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             availability: data.availability.map(slot => ({
@@ -203,6 +258,124 @@ export default function AppointmentsPage() {
                                     />
                                     {errors.description && <p className="text-xs text-red-500">{errors.description.message}</p>}
                                 </label>
+
+                                {/* PRICE */}
+                                <label className="flex flex-col gap-2">
+                                    <span className="font-semibold text-sm">Price ($)</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        {...register("price", { valueAsNumber: true })}
+                                        className={`h-12 rounded-lg border px-4 dark:bg-[#101922] ${errors.price ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                                        placeholder="0.00"
+                                    />
+                                    {errors.price && <p className="text-xs text-red-500">{errors.price.message}</p>}
+                                </label>
+
+                                {/* VIDEO LINK */}
+                                <label className="flex flex-col gap-2">
+                                    <span className="font-semibold text-sm">Video Link (Optional)</span>
+                                    <input
+                                        type="url"
+                                        {...register("videoLink")}
+                                        className={`h-12 rounded-lg border px-4 dark:bg-[#101922] ${errors.videoLink ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                                        placeholder="https://youtube.com/watch?v=..."
+                                    />
+                                    {errors.videoLink && <p className="text-xs text-red-500">{errors.videoLink.message}</p>}
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">Add a promotional or intro video to showcase your event</p>
+                                </label>
+
+                                {/* CATEGORY */}
+                                <label className="flex flex-col gap-2">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-semibold text-sm">Category *</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsCategoryModalOpen(true)}
+                                            className="text-primary text-xs font-semibold hover:underline flex items-center gap-1"
+                                        >
+                                            <Plus size={14} /> Create Category
+                                        </button>
+                                    </div>
+                                    <select
+                                        {...register("category")}
+                                        className={`h-12 rounded-lg border px-4 dark:bg-[#101922] ${errors.category ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                                    >
+                                        <optgroup label="Standard Categories">
+                                            <option value="technology">🖥️ Technology</option>
+                                            <option value="business">💼 Business</option>
+                                            <option value="health">🏥 Health & Wellness</option>
+                                            <option value="education">📚 Education</option>
+                                            <option value="arts">🎨 Arts & Culture</option>
+                                            <option value="sports">⚽ Sports & Fitness</option>
+                                            <option value="food">🍔 Food & Drink</option>
+                                            <option value="music">🎵 Music</option>
+                                            <option value="other">📌 Other</option>
+                                        </optgroup>
+                                        {categories && categories.length > 0 && (
+                                            <optgroup label="My Categories">
+                                                {categories.map((cat: any) => (
+                                                    <option key={cat._id} value={cat._id}>
+                                                        {cat.color && <span style={{ color: cat.color }}>● </span>}{cat.name}
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                    </select>
+                                    {errors.category && <p className="text-xs text-red-500">{errors.category.message}</p>}
+                                </label>
+
+                                <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
+                                    <DialogContent className="sm:max-w-md">
+                                        <DialogHeader>
+                                            <DialogTitle>Create New Category</DialogTitle>
+                                            <DialogDescription>
+                                                Add a custom category to organize your events.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="flex flex-col gap-4 py-4">
+                                            <div className="flex flex-col gap-2">
+                                                <Label htmlFor="category-name">Name</Label>
+                                                <Input
+                                                    id="category-name"
+                                                    value={newCategoryName}
+                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCategoryName(e.target.value)}
+                                                    placeholder="e.g. Workshop"
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-2">
+                                                <Label htmlFor="category-desc">Description</Label>
+                                                <Textarea
+                                                    id="category-desc"
+                                                    value={newCategoryDesc}
+                                                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewCategoryDesc(e.target.value)}
+                                                    placeholder="Brief description of this category..."
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-2">
+                                                <Label htmlFor="category-color">Color</Label>
+                                                <div className="flex items-center gap-2">
+                                                    <Input
+                                                        id="category-color"
+                                                        type="color"
+                                                        value={newCategoryColor}
+                                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCategoryColor(e.target.value)}
+                                                        className="w-12 h-10 p-1 cursor-pointer"
+                                                    />
+                                                    <span className="text-sm text-slate-500">{newCategoryColor}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button variant="outline" onClick={() => setIsCategoryModalOpen(false)}>
+                                                Cancel
+                                            </Button>
+                                            <Button onClick={handleCreateCategory} disabled={!newCategoryName || isCreatingCategory}>
+                                                {isCreatingCategory ? "Creating..." : "Create Category"}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
 
                                 {/* SERVICE TYPE */}
                                 <div>
@@ -476,31 +649,101 @@ export default function AppointmentsPage() {
                                 </div>
                             </div>
                         </section>
+
+                        {/* CARD CUSTOMIZATION */}
+                        <section className="bg-white dark:bg-[#1a2632] rounded-xl border shadow-sm">
+                            <div className="px-6 py-4 border-b flex items-center gap-2">
+                                <span className="material-symbols-outlined text-primary"><Calendar size={20} /></span>
+                                <h2 className="text-lg font-bold">Card Customization</h2>
+                            </div>
+                            <div className="p-6">
+                                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 block">
+                                    Choose Gradient Color
+                                </label>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    {[
+                                        { from: "from-orange-400", to: "to-red-500", label: "Sunset" },
+                                        { from: "from-indigo-500", to: "to-purple-600", label: "Purple Dream" },
+                                        { from: "from-blue-50", to: "to-indigo-50", label: "Ocean Breeze" },
+                                        { from: "from-green-400", to: "to-cyan-500", label: "Mint Fresh" },
+                                        { from: "from-pink-400", to: "to-rose-500", label: "Rose Garden" },
+                                        { from: "from-yellow-400", to: "to-orange-500", label: "Golden Hour" },
+                                        { from: "from-teal-400", to: "to-blue-500", label: "Ocean Deep" },
+                                        { from: "from-purple-400", to: "to-pink-500", label: "Lavender" },
+                                        { from: "from-slate-700", to: "to-slate-900", label: "Midnight" },
+                                    ].map((gradient) => {
+                                        const isSelected =
+                                            cardGradient?.from === gradient.from &&
+                                            cardGradient?.to === gradient.to;
+
+                                        return (
+                                            <button
+                                                key={`${gradient.from}-${gradient.to}`}
+                                                type="button"
+                                                onClick={() => {
+                                                    setValue("cardGradient", {
+                                                        from: gradient.from,
+                                                        to: gradient.to,
+                                                    });
+                                                }}
+                                                className={`relative p-4 rounded-xl border-2 transition-all ${isSelected
+                                                    ? "border-primary shadow-md scale-105"
+                                                    : "border-slate-200 dark:border-slate-700 hover:border-primary/50"
+                                                    }`}
+                                            >
+                                                <div
+                                                    className={`h-16 rounded-lg bg-linear-to-br ${gradient.from} ${gradient.to} mb-2`}
+                                                />
+                                                <p className="text-xs font-medium text-slate-700 dark:text-slate-300 text-center">
+                                                    {gradient.label}
+                                                </p>
+                                                {isSelected && (
+                                                    <div className="absolute top-2 right-2 bg-primary text-white rounded-full p-1">
+                                                        <svg
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            className="h-4 w-4"
+                                                            viewBox="0 0 20 20"
+                                                            fill="currentColor"
+                                                        >
+                                                            <path
+                                                                fillRule="evenodd"
+                                                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                                clipRule="evenodd"
+                                                            />
+                                                        </svg>
+                                                    </div>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </section>
                     </div>
 
                     {/* ================= RIGHT COLUMN ================= */}
                     <div className="sticky top-24 bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6">
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4 uppercase tracking-wide">Preview</h3>
-                        <div className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900 p-5 border border-blue-100 dark:border-slate-700">
+                        <div className={`rounded-xl bg-linear-to-br ${cardGradient?.from || "from-blue-50"} ${cardGradient?.to || "to-indigo-50"} dark:from-slate-800 dark:to-slate-900 p-5 border ${isDarkGradient ? "border-white/20" : "border-blue-100"} dark:border-slate-700`}>
                             <div className="flex items-start justify-between mb-4">
-                                <div className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm text-primary">
+                                <div className={`p-2 ${isDarkGradient ? "bg-white/20" : "bg-white"} dark:bg-slate-800 rounded-lg shadow-sm ${isDarkGradient ? "text-white" : "text-primary"}`}>
                                     <span className="material-symbols-outlined">
                                         {service === "google_meet" ? <Video size={20} /> :
-                                            service === "zoom" ? <Video size={20} className="text-blue-500" /> :
-                                                <Video size={20} className="text-indigo-500" />}
+                                            service === "zoom" ? <Video size={20} className={isDarkGradient ? "text-white" : "text-blue-500"} /> :
+                                                <Video size={20} className={isDarkGradient ? "text-white" : "text-indigo-500"} />}
                                     </span>
                                 </div>
-                                <span className="px-2 py-1 bg-white/60 dark:bg-black/20 rounded text-xs font-semibold text-slate-600 dark:text-slate-400">
-                                    {formattedDuration}
+                                <span className={`px-2 py-1 ${isDarkGradient ? "bg-white/20 text-white" : "bg-white/60 text-slate-600"} dark:bg-black/20 rounded text-xs font-semibold dark:text-slate-400`}>
+                                    {formattedDuration} • ${price || 0}
                                 </span>
                             </div>
-                            <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-1 truncate">
+                            <h4 className={`text-lg font-bold ${isDarkGradient ? "text-white" : "text-slate-900"} dark:text-white mb-1 truncate`}>
                                 {title || "Untitled Event"}
                             </h4>
-                            <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-4">
+                            <p className={`text-sm ${isDarkGradient ? "text-white/90" : "text-slate-600"} dark:text-slate-400 line-clamp-2 mb-4`}>
                                 {description || "No description provided."}
                             </p>
-                            <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-3">
+                            <div className={`flex items-center gap-2 text-xs font-medium ${isDarkGradient ? "text-white/80 border-white/20" : "text-slate-500 border-slate-200"} dark:text-slate-400 border-t dark:border-slate-700 pt-3`}>
                                 <div className="size-5 rounded-full bg-cover bg-center" data-alt="Small user avatar in preview card" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBRwj-nEsfvf2JHyIzgQYNF1TUV2CbfZ8AeBCY-zy_ICYQOgs0LJ_4AYq7moFN8LhFweUyi6hVgKp3bX4OguxD46uT4lNbhrTAxbTi9tSPlqWlxMrwBhp9EF1GS0sUpr--5mKDiaDGHZNsTgvnTXj3HylVR9TKzdnxo3FjW4zFd-g3_YrGc4m_nl6HSXaSNJs372f5t5xABUiSLulrJhbblkknjKWPKHMIzv91uGGxAPlGZvbP1I1dbZswACIYAKhUxXH1QGZswSWk")' }}></div>
                                 <span>Hosted by You</span>
                             </div>
@@ -518,6 +761,43 @@ export default function AppointmentsPage() {
                                 <div>
                                     <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Calendar Sync</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">This event will check your main calendar for conflicts automatically.</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">SEO Boost</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Use specific keywords in your title (e.g., "Online Yoga Class" instead of "Class"). This helps people find your event on Google.</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Pricing Strategy</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Competitive pricing increases visibility. Free or low-cost events get 3x more views in search results.</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Visibility Tip</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Choose vibrant gradient colors! Eye-catching cards get 40% more clicks on storefront pages.</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Availability Matters</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Offer multiple time slots across different days. Events with 5+ weekly slots get booked 2x faster.</p>
                                 </div>
                             </div>
                         </div>
