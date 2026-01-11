@@ -7,7 +7,10 @@ const availabilitySchema = new mongoose.Schema({
         required: true
     },
     start: String, // "09:00"
-    end: String    // "17:00"
+    end: String,   // "17:00"
+    startPause: String,
+    endPause: String,
+    disabledSlots: [String] // ["10:00", "14:30"]
 });
 
 

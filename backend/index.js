@@ -17,7 +17,7 @@ const { DateTime } = require("luxon");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const { getSearchQuery, getPaginationOptions, formatPagedResponse } = require("./utils/queryHelper");
-
+const authRoutes = require("./routes/authRoutes");
 const app = express();
 
 // Enable CORS
@@ -77,71 +77,11 @@ const SCOPES = [
     "https://www.googleapis.com/auth/userinfo.email"
 ];
 
-// ------------------ USERS ------------------
 
-// Register
-app.post("/auth/register", catchAsync(async (req, res) => {
-    const { fullName, email, password, role } = req.body;
 
-    if (!email || !password || !fullName) {
-        const error = new Error("Email, password and fullName required");
-        error.statusCode = 400;
-        throw error;
-    }
+// ------------------ ROUTES ------------------
+app.use("/auth", authRoutes);
 
-    const exists = await User.findOne({ email });
-    if (exists) {
-        const error = new Error("User already exists");
-        error.statusCode = 400;
-        throw error;
-    }
-
-    const user = await User.create({
-        fullName,
-        email,
-        password,
-        role: role === "admin" ? "admin" : "user" // prevent random admin
-    });
-
-    res.json({ message: "User registered successfully", user });
-}));
-
-// Login
-app.post("/auth/login", catchAsync(async (req, res) => {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-        const error = new Error("Email and password required");
-        error.statusCode = 400;
-        throw error;
-    }
-
-    const user = await User.findOne({ email });
-    if (!user) {
-        const error = new Error("Invalid credentials");
-        error.statusCode = 401;
-        throw error;
-    }
-
-    const valid = await user.comparePassword(password);
-    if (!valid) {
-        const error = new Error("Invalid credentials");
-        error.statusCode = 401;
-        throw error;
-    }
-
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRES_IN
-    });
-
-    res.json({ user, token });
-}));
-
-// Get current user profile
-app.get("/auth/me", auth, catchAsync(async (req, res) => {
-    // req.user is already populated by the auth middleware
-    res.json(req.user);
-}));
 
 app.get("/owner/events/:id/bookings", auth, catchAsync(async (req, res) => {
     const bookings = await Booking.find({ event: req.params.id })
@@ -292,7 +232,10 @@ app.get("/events/:id/availability", catchAsync(async (req, res) => {
     const slots = generateSlots(
         dayAvailability.start,
         dayAvailability.end,
-        event.slotDuration
+        event.slotDuration,
+        dayAvailability.startPause,
+        dayAvailability.endPause,
+        dayAvailability.disabledSlots
     );
 
     const bookedSlots = await Booking.find({
@@ -308,68 +251,87 @@ app.get("/events/:id/availability", catchAsync(async (req, res) => {
 }));
 
 app.post("/events", auth, catchAsync(async (req, res) => {
-    const { userId, title, description, availability, slotDuration, service, durationType, customDurationUnit, customDurationValue, timezone } = req.body;
+    try {
+        const { userId, title, description, availability, slotDuration, service, durationType, customDurationUnit, customDurationValue, timezone } = req.body;
 
-    if (!userId || !title) {
-        const error = new Error("userId and title required");
-        error.statusCode = 400;
-        throw error;
-    }
-
-    const user = await User.findById(userId);
-    if (!user || !user.googleConnected || !user.refreshToken) {
-        const error = new Error("Google account not connected");
-        error.statusCode = 400;
-        throw error;
-    }
-
-    // Set refresh token before API call
-    oauth2Client.setCredentials({ refresh_token: user.refreshToken });
-
-    const calendar = google.calendar({ version: "v3", auth: oauth2Client });
-
-    const event = {
-        summary: title,
-        description,
-        availability,
-        slotDuration,
-        durationType,
-        customDurationUnit,
-        customDurationValue,
-        start: { dateTime: new Date(Date.now() + 5 * 60 * 1000).toISOString(), timeZone: "UTC" },
-        end: { dateTime: new Date(Date.now() + 35 * 60 * 1000).toISOString(), timeZone: "UTC" },
-        conferenceData: {
-            createRequest: {
-                requestId: Math.random().toString(36).substring(2),
-                conferenceSolutionKey: { type: "hangoutsMeet" }
-            }
+        if (!userId || !title) {
+            const error = new Error("userId and title required");
+            error.statusCode = 400;
+            throw error;
         }
-    };
 
-    const response = await calendar.events.insert({
-        calendarId: "primary",
-        resource: event,
-        conferenceDataVersion: 1
-    });
+        const user = await User.findById(userId);
+        if (!user || !user.googleConnected || !user.refreshToken) {
+            const error = new Error("Google account not connected");
+            error.statusCode = 400;
+            throw error;
+        }
 
-    const savedEvent = await Event.create({
-        title,
-        description,
-        availability,
-        slotDuration,
-        durationType,
-        customDurationUnit,
-        customDurationValue,
-        service,
-        timezone: timezone || "UTC",
-        meetLink: response.data.hangoutLink,
-        owner: user._id
-    });
+        // Set refresh token before API call
+        oauth2Client.setCredentials({ refresh_token: user.refreshToken });
 
-    res.json(savedEvent);
+        const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+        const gCalEvent = {
+            summary: title,
+            description,
+            start: { dateTime: new Date(Date.now() + 5 * 60 * 1000).toISOString(), timeZone: "UTC" },
+            end: { dateTime: new Date(Date.now() + 35 * 60 * 1000).toISOString(), timeZone: "UTC" },
+            conferenceData: {
+                createRequest: {
+                    requestId: Math.random().toString(36).substring(2),
+                    conferenceSolutionKey: { type: "hangoutsMeet" }
+                }
+            }
+        };
+
+        const response = await calendar.events.insert({
+            calendarId: "primary",
+            resource: gCalEvent,
+            conferenceDataVersion: 1
+        });
+
+        const savedEvent = await Event.create({
+            title,
+            description,
+            availability,
+            slotDuration,
+            durationType,
+            customDurationUnit,
+            customDurationValue,
+            service,
+            timezone: timezone || "UTC",
+            meetLink: response.data.hangoutLink,
+            owner: user._id
+        });
+
+        res.json(savedEvent);
+    } catch (err) {
+        console.error("Error creating event:", err);
+        throw err;
+    }
 }));
 
-
+app.patch("/events/:id", auth, catchAsync(async (req, res) => {
+    const { title, description, availability, slotDuration, durationType, customDurationUnit, customDurationValue, service, timezone } = req.body;
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+        const error = new Error("Event not found");
+        error.statusCode = 404;
+        throw error;
+    }
+    event.title = title;
+    event.description = description;
+    event.availability = availability;
+    event.slotDuration = slotDuration;
+    event.durationType = durationType;
+    event.customDurationUnit = customDurationUnit;
+    event.customDurationValue = customDurationValue;
+    event.service = service;
+    event.timezone = timezone;
+    await event.save();
+    res.json(event);
+}));
 // ------------------ CATEGORY ------------------
 app.post("/events/:id/category", auth, catchAsync(async (req, res) => {
     const { categoryId } = req.body;
