@@ -16,7 +16,7 @@ const staffSchema = new mongoose.Schema({
     phone: { type: String },
     role: {
         type: String,
-        enum: ['Admin', 'Receptionist', 'Manager'],
+        enum: ['Staff_Admin', 'Receptionist', 'Manager'],
         default: 'Manager'
     },
     isActive: { type: Boolean, default: true },

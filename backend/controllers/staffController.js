@@ -1,6 +1,6 @@
 const Staff = require("../models/Staff");
 const catchAsync = require("../utils/catchAsync");
-
+const User = require("../models/User");
 const DEFAULT_WORKING_HOURS = [
     { day: "monday", startTime: "08:00", endTime: "17:00", isActive: true },
     { day: "tuesday", startTime: "08:00", endTime: "17:00", isActive: true },
@@ -13,7 +13,23 @@ const DEFAULT_WORKING_HOURS = [
 
 exports.createStaff = catchAsync(async (req, res) => {
     const { name, email, phone, role, isActive, onLeave, location, image, categories, sendInvitationEmail } = req.body;
-
+    const existingStaff = await Staff.findOne({ email });
+    if (existingStaff) {
+        const error = new Error("Staff member already exists");
+        error.statusCode = 400;
+        throw error;
+    }
+    const user = await User.findById(req.user._id);
+    if (!user) {
+        const error = new Error("User not found");
+        error.statusCode = 404;
+        throw error;
+    }
+    if (!name || !email || !phone || !role || !isActive || !onLeave || !categories) {
+        const error = new Error("Please provide all the required fields");
+        error.statusCode = 400;
+        throw error;
+    }
     const staff = await Staff.create({
         name,
         email,
