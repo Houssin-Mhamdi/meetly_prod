@@ -55,3 +55,5 @@ export interface EventsResponse {
     };
     message?: string;
 }
+export const DAYS: string[] = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+

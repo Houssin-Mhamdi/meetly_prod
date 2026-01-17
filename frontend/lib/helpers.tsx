@@ -17,3 +17,21 @@ export const formatDate = (dateString: string) => {
         day: "numeric",
     });
 };
+
+
+export const generateTimeSlots = (start: string, end: string) => {
+    if (!start || !end) return [];
+    const slots = [];
+    let [h, m] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    let current = h * 60 + m;
+    const finish = eh * 60 + em;
+
+    while (current <= finish) {
+        const hh = Math.floor(current / 60);
+        const mm = current % 60;
+        slots.push(`${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`);
+        current += 30;
+    }
+    return slots;
+};

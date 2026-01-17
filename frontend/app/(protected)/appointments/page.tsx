@@ -1,72 +1,23 @@
 "use client";
 
-import { useForm, SubmitHandler, useFieldArray, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { SubmitHandler, useFieldArray, useWatch } from "react-hook-form";
+import { type AppointmentFormValues } from "../../validations/schemas";
+import { useAppointmentForm } from "@/app/hooks/useAppointmentForm";
 import { useRouter } from "next/navigation";
 import { Calendar, Check, ChevronLeft, ChevronRight, Clock5, FilePlusCorner, Info, Lightbulb, Plus, Trash, Video, X } from "lucide-react";
 import { useCreateEventMutation } from "@/app/services/queries/eventQuery";
 import { useProfileQuery } from "@/app/services/queries/authQuery";
-import { useCreateCategoryMutation, useGetCategoriesQuery } from "@/app/services/queries/categoryQuery";
+import { useGetCategoriesQuery } from "@/app/services/queries/categoryQuery";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { generateTimeSlots } from "@/lib/helpers";
+import { DAYS } from "@/app/types/event.types";
+import { CategoryModal } from "@/app/components/EventComponents/CategoryModal";
 
 
-/* =======================
-   ZOD SCHEMA
-======================= */
 
-export const appointmentSchema = z.object({
-    title: z.string().min(1, "Title is required"),
-    description: z.string().min(1, "Description is required"),
-    price: z.number().min(0, "Price cannot be negative"),
-    videoLink: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-    category: z.string().min(1, "Category is required"),
-    service: z.enum(["google_meet", "zoom", "microsoft_teams"]),
-    durationType: z.enum(["15", "30", "45", "60", "custom"]),
-    customDurationValue: z.number().optional(),
-    customDurationUnit: z.enum(["min", "hr"]).optional(),
-    availability: z.array(
-        z.object({
-            day: z.string(),
-            start: z.string(),
-            end: z.string(),
-            startPause: z.string().optional(),
-            endPause: z.string().optional(),
-        })
-    ).max(7, "You can add at most 7 days")
-        .refine((data) => {
-            const days = data.map(d => d.day.toLowerCase());
-            return new Set(days).size === days.length;
-        }, { message: "Each day can only be selected once" }),
-    cardGradient: z.object({
-        from: z.string(),
-        to: z.string(),
-    }),
-});
 
-const generateTimeSlots = (start: string, end: string) => {
-    if (!start || !end) return [];
-    const slots = [];
-    let [h, m] = start.split(":").map(Number);
-    const [eh, em] = end.split(":").map(Number);
-    let current = h * 60 + m;
-    const finish = eh * 60 + em;
 
-    while (current <= finish) {
-        const hh = Math.floor(current / 60);
-        const mm = current % 60;
-        slots.push(`${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`);
-        current += 30;
-    }
-    return slots;
-};
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 const staffMembers = [
     { id: "1", name: "Sarah J.", role: "Therapist", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAOe3RVpqsfkRfKOh9-ZSqCVGT7y68ElgUIOVYk3aJoD419QU7mT3PdPAlIWilnc3B-klMkC3Kd4vZzEYtqyKrj41Wfm90P7oKQH4a27aKxAJbE8e2gPpaDI5UECtonqSMz2HHhiOfNkMI0NaTuEM2E4gu7blyDFLKX2VSxOA41kP0atmGY02wjhWb5AbE-jULLnTcIxjZJ0rZ88e1tMTRgmOqtxs2UGyygwPUfXfUlyuzSbA-9X3OCgx7_C7R3kqmxmO5mgbtvJJA" },
@@ -76,7 +27,7 @@ const staffMembers = [
     { id: "5", name: "Jessica W.", role: "Coordinator" },
 ];
 
-type AppointmentFormValues = z.infer<typeof appointmentSchema>;
+
 
 /* =======================
    PAGE
@@ -85,31 +36,10 @@ export default function AppointmentsPage() {
     const { mutate: createEvent, isPending } = useCreateEventMutation();
     const { data: user, isLoading } = useProfileQuery();
     const { data: categories, isLoading: isCategoriesLoading } = useGetCategoriesQuery();
-    const { mutate: createCategory, isPending: isCreatingCategory } = useCreateCategoryMutation();
-
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-    const [newCategoryName, setNewCategoryName] = useState("");
-    const [newCategoryDesc, setNewCategoryDesc] = useState("");
-    const [newCategoryColor, setNewCategoryColor] = useState("#3b82f6");
+
     const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
-
-
     const router = useRouter();
-    const handleCreateCategory = () => {
-        if (!newCategoryName) return;
-        createCategory({
-            name: newCategoryName,
-            description: newCategoryDesc,
-            color: newCategoryColor
-        }, {
-            onSuccess: () => {
-                setIsCategoryModalOpen(false);
-                setNewCategoryName("");
-                setNewCategoryDesc("");
-                setNewCategoryColor("#3b82f6");
-            }
-        });
-    };
 
 
     const {
@@ -118,27 +48,7 @@ export default function AppointmentsPage() {
         handleSubmit,
         setValue,
         formState: { errors }
-    } = useForm<AppointmentFormValues>({
-        resolver: zodResolver(appointmentSchema) as any,
-        defaultValues: {
-            title: "30 Min Consultation",
-            description: "Briefly describe what this event is about...",
-            price: 0,
-            videoLink: "",
-            category: "other",
-            service: "google_meet",
-            durationType: "30",
-            customDurationValue: 30,
-            customDurationUnit: "min",
-            availability: [
-                { day: "Monday", start: "09:00", end: "17:00", startPause: "", endPause: "" },
-            ],
-            cardGradient: {
-                from: "from-blue-50",
-                to: "to-indigo-50",
-            },
-        },
-    });
+    } = useAppointmentForm();
 
 
 
@@ -337,57 +247,10 @@ export default function AppointmentsPage() {
                                     {errors.category && <p className="text-xs text-red-500">{errors.category.message}</p>}
                                 </label>
 
-                                <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
-                                    <DialogContent className="sm:max-w-md">
-                                        <DialogHeader>
-                                            <DialogTitle>Create New Category</DialogTitle>
-                                            <DialogDescription>
-                                                Add a custom category to organize your events.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="flex flex-col gap-4 py-4">
-                                            <div className="flex flex-col gap-2">
-                                                <Label htmlFor="category-name">Name</Label>
-                                                <Input
-                                                    id="category-name"
-                                                    value={newCategoryName}
-                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCategoryName(e.target.value)}
-                                                    placeholder="e.g. Workshop"
-                                                />
-                                            </div>
-                                            <div className="flex flex-col gap-2">
-                                                <Label htmlFor="category-desc">Description</Label>
-                                                <Textarea
-                                                    id="category-desc"
-                                                    value={newCategoryDesc}
-                                                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewCategoryDesc(e.target.value)}
-                                                    placeholder="Brief description of this category..."
-                                                />
-                                            </div>
-                                            <div className="flex flex-col gap-2">
-                                                <Label htmlFor="category-color">Color</Label>
-                                                <div className="flex items-center gap-2">
-                                                    <Input
-                                                        id="category-color"
-                                                        type="color"
-                                                        value={newCategoryColor}
-                                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCategoryColor(e.target.value)}
-                                                        className="w-12 h-10 p-1 cursor-pointer"
-                                                    />
-                                                    <span className="text-sm text-slate-500">{newCategoryColor}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button variant="outline" onClick={() => setIsCategoryModalOpen(false)}>
-                                                Cancel
-                                            </Button>
-                                            <Button onClick={handleCreateCategory} disabled={!newCategoryName || isCreatingCategory}>
-                                                {isCreatingCategory ? "Creating..." : "Create Category"}
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
+                                <CategoryModal
+                                    open={isCategoryModalOpen}
+                                    onOpenChange={setIsCategoryModalOpen}
+                                />
 
                                 {/* SERVICE TYPE */}
                                 <div>
@@ -713,7 +576,7 @@ export default function AppointmentsPage() {
                                 })}
 
                                 {/* Add New Button (End of List) */}
-                                <button type="button" className="min-w-[140px] border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-primary text-slate-400 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-800/50 p-4 rounded-xl flex flex-col items-center justify-center gap-2 flex-shrink-0 transition-all group">
+                                <button onClick={() => router.push('/staff')} type="button" className="min-w-[140px] border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-primary text-slate-400 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-800/50 p-4 rounded-xl flex flex-col items-center justify-center gap-2 flex-shrink-0 transition-all group">
                                     <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-primary/20 group-hover:text-primary flex items-center justify-center transition-colors">
                                         <Plus size={20} />
                                     </div>
