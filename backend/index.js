@@ -20,7 +20,9 @@ const authRoutes = require("./routes/authRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const userRoutes = require("./routes/userRoutes");
 const profileRoutes = require("./routes/profileRoutes");
+const staffRoutes = require("./routes/staffRoutes");
 const app = express();
+
 
 
 // Enable CORS
@@ -87,6 +89,7 @@ app.use("/auth", authRoutes);
 app.use(categoryRoutes);
 app.use(userRoutes);
 app.use("/profile", profileRoutes);
+app.use("/staff", staffRoutes);
 
 
 app.get("/owner/events/:id/bookings", auth, catchAsync(async (req, res) => {
