@@ -13,6 +13,7 @@ export interface EventSettings {
     canUpdateDuration: boolean;
     canUpdateAvailability: boolean;
     canUpdatePrice: boolean;
+    canUpdateVideoLink: boolean;
 }
 
 export interface SchedulingEvent {

@@ -3,7 +3,8 @@
 import { useForm, SubmitHandler, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Calendar, ChevronLeft, ChevronRight, Clock5, FilePlusCorner, Info, Lightbulb, Plus, Trash, Video } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Calendar, Check, ChevronLeft, ChevronRight, Clock5, FilePlusCorner, Info, Lightbulb, Plus, Trash, Video, X } from "lucide-react";
 import { useCreateEventMutation } from "@/app/services/queries/eventQuery";
 import { useProfileQuery } from "@/app/services/queries/authQuery";
 import { useCreateCategoryMutation, useGetCategoriesQuery } from "@/app/services/queries/categoryQuery";
@@ -67,6 +68,14 @@ const generateTimeSlots = (start: string, end: string) => {
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+const staffMembers = [
+    { id: "1", name: "Sarah J.", role: "Therapist", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAOe3RVpqsfkRfKOh9-ZSqCVGT7y68ElgUIOVYk3aJoD419QU7mT3PdPAlIWilnc3B-klMkC3Kd4vZzEYtqyKrj41Wfm90P7oKQH4a27aKxAJbE8e2gPpaDI5UECtonqSMz2HHhiOfNkMI0NaTuEM2E4gu7blyDFLKX2VSxOA41kP0atmGY02wjhWb5AbE-jULLnTcIxjZJ0rZ88e1tMTRgmOqtxs2UGyygwPUfXfUlyuzSbA-9X3OCgx7_C7R3kqmxmO5mgbtvJJA" },
+    { id: "2", name: "Michael T.", role: "Assistant" },
+    { id: "3", name: "Emily R.", role: "Manager" },
+    { id: "4", name: "David L.", role: "Specialist" },
+    { id: "5", name: "Jessica W.", role: "Coordinator" },
+];
+
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
 
 /* =======================
@@ -82,7 +91,10 @@ export default function AppointmentsPage() {
     const [newCategoryName, setNewCategoryName] = useState("");
     const [newCategoryDesc, setNewCategoryDesc] = useState("");
     const [newCategoryColor, setNewCategoryColor] = useState("#3b82f6");
+    const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
 
+
+    const router = useRouter();
     const handleCreateCategory = () => {
         if (!newCategoryName) return;
         createCategory({
@@ -635,18 +647,78 @@ export default function AppointmentsPage() {
                         </section>
 
 
-                        {/* STAFF MEMBER (UNCHANGED) */}
+                        {/* STAFF MEMBER */}
                         <section className="bg-white dark:bg-[#1a2632] rounded-xl border p-6 shadow-sm">
-                            <h2 className="text-lg font-bold mb-4">Staff Member</h2>
-                            <div className="flex gap-4">
-                                <div className="border-2 border-primary p-4 rounded-xl text-center">
-                                    <img
-                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAOe3RVpqsfkRfKOh9-ZSqCVGT7y68ElgUIOVYk3aJoD419QU7mT3PdPAlIWilnc3B-klMkC3Kd4vZzEYtqyKrj41Wfm90P7oKQH4a27aKxAJbE8e2gPpaDI5UECtonqSMz2HHhiOfNkMI0NaTuEM2E4gu7blyDFLKX2VSxOA41kP0atmGY02wjhWb5AbE-jULLnTcIxjZJ0rZ88e1tMTRgmOqtxs2UGyygwPUfXfUlyuzSbA-9X3OCgx7_C7R3kqmxmO5mgbtvJJA"
-                                        className="w-12 h-12 rounded-full mx-auto"
-                                    />
-                                    <p className="font-bold mt-2">Sarah J.</p>
-                                    <p className="text-xs text-gray-500">Therapist</p>
-                                </div>
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-bold">Staff Members</h2>
+                                <button onClick={() => {
+                                    router.push("/staff");
+                                }} type="button" className="text-sm font-medium text-primary hover:underline flex items-center gap-1 transition-colors">
+                                    <Plus size={16} /> Add Staff Member
+                                </button>
+                            </div>
+                            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+                                {staffMembers.map((staff) => {
+                                    const isSelected = selectedStaffIds.includes(staff.id);
+                                    return (
+                                        <div
+                                            key={staff.id}
+                                            onClick={() => {
+                                                if (isSelected) {
+                                                    setSelectedStaffIds(prev => prev.filter(id => id !== staff.id));
+                                                } else {
+                                                    setSelectedStaffIds(prev => [...prev, staff.id]);
+                                                }
+                                            }}
+                                            className={`relative min-w-[140px] border-2 p-4 rounded-xl text-center flex-shrink-0 cursor-pointer transition-all group ${isSelected
+                                                ? 'border-primary bg-primary/5'
+                                                : 'border-slate-100 dark:border-slate-800 hover:border-primary/50 bg-white dark:bg-slate-900'
+                                                }`}
+                                        >
+                                            {/* Checkmark (Selection) */}
+                                            {isSelected && (
+                                                <div className="absolute top-2 right-2 w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center shadow-sm z-10 animate-in fade-in zoom-in duration-200">
+                                                    <Check size={12} strokeWidth={3} />
+                                                </div>
+                                            )}
+
+                                            {/* Delete Button (Hover) */}
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    // Handle delete logic here
+                                                    console.log(`Delete staff ${staff.id}`);
+                                                }}
+                                                className="absolute top-2 left-2 w-6 h-6 bg-red-100 text-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-200 hover:scale-110 z-10"
+                                            >
+                                                <X size={14} />
+                                            </button>
+
+                                            {staff.image ? (
+                                                <img
+                                                    src={staff.image}
+                                                    className="w-14 h-14 rounded-full mx-auto object-cover ring-2 ring-white dark:ring-[#1a2632] shadow-sm mb-3"
+                                                    alt={staff.name}
+                                                />
+                                            ) : (
+                                                <div className={`w-14 h-14 rounded-full mx-auto bg-slate-100 dark:bg-slate-800 flex items-center justify-center transition-colors mb-3 ${isSelected ? 'text-primary bg-primary/20' : 'text-slate-400 group-hover:text-primary'}`}>
+                                                    <span className="material-symbols-outlined text-2xl">person</span>
+                                                </div>
+                                            )}
+                                            <p className={`font-bold mt-1 text-sm transition-colors ${isSelected ? 'text-primary' : 'text-slate-900 dark:text-white'}`}>{staff.name}</p>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">{staff.role}</p>
+                                        </div>
+                                    );
+                                })}
+
+                                {/* Add New Button (End of List) */}
+                                <button type="button" className="min-w-[140px] border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-primary text-slate-400 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-800/50 p-4 rounded-xl flex flex-col items-center justify-center gap-2 flex-shrink-0 transition-all group">
+                                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-primary/20 group-hover:text-primary flex items-center justify-center transition-colors">
+                                        <Plus size={20} />
+                                    </div>
+                                    <span className="text-xs font-bold uppercase tracking-wide">Add New</span>
+                                </button>
                             </div>
                         </section>
 

@@ -124,6 +124,12 @@ const SettingsModal = ({
                         checked={settings.canUpdatePrice}
                         onChange={(v) => setSettings({ ...settings, canUpdatePrice: v })}
                     />
+                    <SettingsToggle
+                        label="Update Video Link"
+                        description="Show/Hide the pen for event video link."
+                        checked={settings.canUpdateVideoLink}
+                        onChange={(v) => setSettings({ ...settings, canUpdateVideoLink: v })}
+                    />
                 </div>
                 <DialogFooter className="bg-slate-50/50 dark:bg-slate-900/40 p-6 flex flex-col sm:flex-row gap-2">
                     <Button variant="ghost" onClick={() => setIsOpen(false)} className="flex-1 font-bold">Cancel</Button>
@@ -292,11 +298,13 @@ const EventCard = memo(({
     const timeStr = useMemo(() => createdAtDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }), [createdAtDate]);
     const [disabledSlots, setDisabledSlots] = useState<Set<string>>(new Set());
     const { mutate: updateEvent } = useUpdateEventMutation();
-
+    console.log("event", event);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [isEditingDescription, setIsEditingDescription] = useState(false);
+    const [isEditingVideoLink, setIsEditingVideoLink] = useState(false);
     const [titleValue, setTitleValue] = useState(event.title);
     const [descriptionValue, setDescriptionValue] = useState(event.description);
+    const [videoLinkValue, setVideoLinkValue] = useState(event.videoLink);
     const [priceValue, setPriceValue] = useState(event.price || 0);
     const [isEditingPrice, setIsEditingPrice] = useState(false);
 
@@ -311,6 +319,7 @@ const EventCard = memo(({
             canUpdateDuration: false,
             canUpdateAvailability: false,
             canUpdatePrice: true,
+            canUpdateVideoLink: true,
         };
     });
 
@@ -364,6 +373,16 @@ const EventCard = memo(({
         setIsEditingDescription(false);
     }, [descriptionValue, event, updateEvent]);
 
+    const handleUpdateVideoLink = useCallback(() => {
+        if (videoLinkValue !== event.videoLink) {
+            updateEvent({ id: event._id, data: { ...event, videoLink: videoLinkValue } });
+        } else {
+            setVideoLinkValue(event.videoLink);
+        }
+        setIsEditingVideoLink(false);
+    }, [videoLinkValue, event, updateEvent]);
+
+
     const handleUpdatePrice = useCallback(() => {
         if (priceValue !== event.price) {
             updateEvent({ id: event._id, data: { ...event, price: priceValue } });
@@ -377,10 +396,11 @@ const EventCard = memo(({
         setTitleValue(event.title);
         setDescriptionValue(event.description);
         setPriceValue(event.price || 0);
+        setVideoLinkValue(event.videoLink);
         setDurationTypeValue(event.durationType || "30");
         setCustomVal(event.customDurationValue || 0);
         setCustomUnit(event.customDurationUnit || "min");
-    }, [event.title, event.description, event.durationType, event.customDurationValue, event.customDurationUnit]);
+    }, [event.title, event.description, event.price, event.videoLink, event.durationType, event.customDurationValue, event.customDurationUnit]);
 
 
     useEffect(() => {
@@ -697,6 +717,38 @@ const EventCard = memo(({
                                     <button
                                         onClick={() => setIsEditingDescription(true)}
                                         className="absolute -right-2 top-0 opacity-0 group-hover/desc:opacity-100 transition-opacity p-1 text-slate-400 hover:text-primary"
+                                    >
+                                        <Pencil size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {isEditingVideoLink ? (
+                            <div className="group/desc relative">
+                                <Input value={videoLinkValue} onKeyDown={(e) => { if (e.key === 'Enter') handleUpdateVideoLink(); if (e.key === 'Escape') setIsEditingVideoLink(false); }} onChange={(e) => setVideoLinkValue(e.target.value)} className={`text-sm text-slate-600 dark:text-slate-400  transition-[max-height,opacity] ${isOpen ? '' : 'line-clamp-1'}`} />
+                                {settings.canUpdateVideoLink && (
+                                    <button
+                                        onClick={() => setIsEditingVideoLink(true)}
+                                        className="absolute -right-2 top-0 opacity-0 group-hover/desc:opacity-100 transition-opacity p-1 text-slate-400 hover:text-primary"
+                                    >
+                                        <Pencil size={14} />
+                                    </button>
+                                )}
+                                <div className="flex justify-end gap-2 mt-2">
+                                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setIsEditingVideoLink(false); setVideoLinkValue(event.videoLink); }}>Cancel</Button>
+                                    <Button size="sm" className="h-7 text-xs" onClick={handleUpdateVideoLink}>Save Changes</Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="group/desc relative">
+                                <p className={`text-sm text-slate-600  dark:text-slate-400 transition-[max-height,opacity] ${isOpen ? '' : 'line-clamp-1'}`}>
+                                    {event.videoLink}
+                                </p>
+                                {settings.canUpdateVideoLink && (
+                                    <button
+                                        onClick={() => setIsEditingVideoLink(true)}
+                                        className="absolute  -right-2 top-0 opacity-0 group-hover/desc:opacity-100 transition-opacity p-1 text-slate-400 hover:text-primary"
                                     >
                                         <Pencil size={14} />
                                     </button>

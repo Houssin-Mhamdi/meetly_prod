@@ -5,8 +5,9 @@
 
 html,
 body {
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
   margin: 0;
   padding: 0;
 }
@@ -181,5 +182,78 @@ body {
 
   .custom-scrollbar:hover::-webkit-scrollbar-thumb {
     background: var(--muted-foreground);
+  }
+
+  .glass-card {
+    background: rgba(26, 30, 35, 0.8);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .laptop-skew {
+    transform: perspective(1200px) rotateX(8deg) rotateY(-4deg);
+  }
+
+  .glow-text {
+    text-shadow: 0 0 20px rgba(37, 157, 244, 0.6), 0 0 40px rgba(37, 157, 244, 0.4);
+  }
+
+  .decorative-path {
+    stroke-dasharray: 8 8;
+    stroke: rgba(255, 255, 255, 0.1);
+    fill: none;
+    pointer-events: none;
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 100px -20px rgba(37, 157, 244, 0.25);
+  }
+
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+
+  @keyframes float-fast {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    25% {
+      transform: translateY(-15px);
+    }
+
+    50% {
+      transform: translateY(0);
+    }
+
+    75% {
+      transform: translateY(15px);
+    }
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-float:hover {
+    animation: float-fast 2s ease-in-out infinite;
+  }
+
+  .delay-700 {
+    animation-delay: 0.7s;
+  }
+
+  .delay-1500 {
+    animation-delay: 1.5s;
   }
 }

@@ -17,8 +17,71 @@ import { useProfileBySlugQuery } from "../services/queries/authQuery";
 export default function StorefrontPage({ params }: { params: { slug: string } }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const param = useParams()
-    const { data: profileSlug, isLoading } = useProfileBySlugQuery(typeof param.slug === 'string' ? param.slug : "")
-    console.log({ profileSlug })
+    const { data: profileSlug, isLoading, isError } = useProfileBySlugQuery(typeof param.slug === 'string' ? param.slug : "")
+    
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-screen w-full bg-white dark:bg-slate-900">
+                <div className="relative">
+                    <div className="h-16 w-16 rounded-full border-4 border-slate-100 dark:border-slate-800 border-t-primary animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-primary text-[20px] animate-pulse">storefront</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (isError || !profileSlug) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen w-full bg-slate-50 dark:bg-slate-950 px-4 font-sans">
+                <div className="w-full max-w-md text-center space-y-8">
+                    <div className="relative mx-auto w-32 h-32">
+                        <div className="absolute inset-0 bg-red-100 dark:bg-red-900/20 rounded-full animate-ping opacity-20 duration-1000"></div>
+                        <div className="relative h-full w-full bg-white dark:bg-slate-900 rounded-full shadow-2xl flex items-center justify-center border-4 border-red-50 dark:border-red-900/10">
+                            <span className="material-symbols-outlined text-red-500 text-6xl">store_off</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                            Store Not Found
+                        </h1>
+                        <p className="text-slate-500 dark:text-slate-400 text-lg leading-relaxed">
+                            Oops! We couldn't find a store with the name <br />
+                            <span className="font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg mt-2 inline-block">
+                                {param.slug}
+                            </span>
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col gap-4 pt-4">
+                        <a
+                            href="/"
+                            className="w-full group relative flex items-center justify-center gap-3 px-8 py-4 bg-primary hover:bg-primary/90 text-white rounded-2xl font-bold transition-all shadow-xl shadow-primary/20 hover:shadow-primary/30 hover:-translate-y-1 overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                            <span className="material-symbols-outlined">add_business</span>
+                            <span className="relative">Create Your Store</span>
+                        </a>
+                        <a
+                            href="/"
+                            className="w-full flex items-center justify-center gap-2 px-8 py-4 bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl font-bold hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all"
+                        >
+                            <span className="material-symbols-outlined">arrow_back</span>
+                            <span>Back to Home</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div className="absolute bottom-8 text-center">
+                    <p className="text-xs text-slate-400 font-medium">Meetly Marketplace &copy; 2024</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="relative flex h-screen w-full flex-col overflow-hidden bg-background-light dark:bg-background-dark font-sans antialiased text-slate-900 dark:text-white transition-colors duration-200">
             {/* Header */}

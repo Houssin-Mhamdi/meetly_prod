@@ -1,11 +1,18 @@
+"use client";
+import AddStaffModal from "@/app/components/staffComponets/AddStaffModal";
+import StaffModalContent from "@/app/components/staffComponets/StaffModalContent";
+import { useState } from "react";
+
 export default function StaffPage() {
+    const [openAddStaff, setOpenAddStaff] = useState(false);
+
     return <div>
         <div className="flex mb-4 flex-wrap justify-between items-start gap-4">
             <div className="flex flex-col gap-2">
                 <h1 className="text-[#111418] dark:text-white text-3xl font-extrabold leading-tight tracking-tight">Team &amp; Staff</h1>
                 <p className="text-[#617589] dark:text-gray-400 text-base font-normal max-w-2xl">Manage schedules, roles, and access permissions for your team members across all locations.</p>
             </div>
-            <button className="flex items-center justify-center gap-2 rounded-lg h-10 px-5 bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-sm transition-all hover:shadow-md">
+            <button onClick={() => setOpenAddStaff(true)} className="flex items-center justify-center gap-2 rounded-lg h-10 px-5 bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-sm transition-all hover:shadow-md">
                 <span className="material-symbols-outlined text-lg">add</span>
                 <span className="truncate">Add New Staff</span>
             </button>
@@ -315,5 +322,8 @@ export default function StaffPage() {
                 <span className="material-symbols-outlined text-lg">expand_more</span>
             </button>
         </div>
+        <AddStaffModal open={openAddStaff} onClose={() => setOpenAddStaff(false)}>
+            <StaffModalContent onClose={() => setOpenAddStaff(false)} />
+        </AddStaffModal>
     </div>
 }
